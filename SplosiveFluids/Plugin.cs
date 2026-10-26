@@ -10,7 +10,7 @@ using System.Collections.Generic;
 // This code definately isn't the greatest since I have basically no C# experience.
 // I was relying on my small amount of Java knowledge and other applicable wisdom I have from making GMod addons.
 
-[BepInPlugin("needa.uniquename.splosivefluids", "ExplosiveFluids", "1.0.0")]
+[BepInPlugin("needa.uniquename.splosivefluids", "ExplosiveFluids", "1.0.1")]
 public class ExplosiveFluidPlugin : BaseUnityPlugin {
     internal static new ManualLogSource Logger;
     private static List<FluidExplosion> explosionQueue = new List<FluidExplosion>();
@@ -19,6 +19,11 @@ public class ExplosiveFluidPlugin : BaseUnityPlugin {
     public static void AddNewExplosionInfo( Vector3 position ) {
         FluidExplosion info = new FluidExplosion( position );
         explosionQueue.Add( info );
+    }
+    
+    public static void ClearQueuedExplosions() {
+        explosionQueue.Clear();
+        Logger.LogInfo( $"Explosive Fluids: Queued explosions have been cleared!" );
     }
     
     public static int GetExplosionsInQueue() {
@@ -106,11 +111,11 @@ public class FluidExplosion {
 public static class FixedUpdatePatch {
     private static void Postfix( LiquidAffect __instance ) {
         // Basically forked from the decompiled code and edited slightly
-        if (Mathf.Abs(__instance.transform.position.x) >= WorldGeneration.world.halfWidth || Mathf.Abs(__instance.transform.position.y) >= WorldGeneration.world.halfHeight) {
+        if ( Mathf.Abs( __instance.transform.position.x ) >= WorldGeneration.world.halfWidth || Mathf.Abs( __instance.transform.position.y ) >= WorldGeneration.world.halfHeight ) {
             return;
         }
         
-        ValueTuple<float, float, int> valueTuple = FluidManager.main.WaterInfo(WorldGeneration.world.WorldToBlockPos(__instance.transform.position));
+        ValueTuple<float, float, int> valueTuple = FluidManager.main.WaterInfo( WorldGeneration.world.WorldToBlockPos( __instance.transform.position ) );
         
         if ( ( __instance.GetComponent<Body>() || __instance.GetComponent<Limb>() ) && valueTuple.Item3 > 0 ) {
             Vector2Int vector2Int = WorldGeneration.world.WorldToBlockPos( __instance.transform.position );
@@ -120,6 +125,15 @@ public static class FixedUpdatePatch {
         }
     }
 }
+
+[HarmonyPatch( typeof( PreRunScript ), "Start" )]
+public static class MenuPatch {
+    private static void Postfix( PreRunScript __instance ) {
+        ExplosiveFluidPlugin.Logger.LogInfo( $"Explosive Fluids: Returning to menu, queued explosions are being cleared..." );
+        ExplosiveFluidPlugin.ClearQueuedExplosions();
+    }
+}
+
 /*
 [HarmonyPatch( typeof( Sound ), "Play" )]
 public static class PlaySoundPatch {
